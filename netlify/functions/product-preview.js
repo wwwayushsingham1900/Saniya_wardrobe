@@ -599,7 +599,7 @@ async function searchPublicImages(url) {
     "https://serpapi.com/search.json?" +
     params.toString(),
     {
-      signal: AbortSignal.timeout(8500)
+      signal: AbortSignal.timeout(20000)
     }
   );
 
