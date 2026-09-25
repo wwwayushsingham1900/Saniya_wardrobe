@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f8f8f4"><script src="./config.js"></script><title>Sania's Wardrobe Checklist</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:#232824;background:#f8f8f4}*{box-sizing:border-box}body{margin:0;padding:20px 12px 84px}.app{max-width:580px;margin:auto;background:white;border:1px solid #e2e7df;border-radius:22px;box-shadow:0 9px 35px #18251a0c;padding:23px 21px}h1{font-size:24px;letter-spacing:-.5px;margin:0 0 8px}h2{font-size:18px;letter-spacing:-.25px;margin:0 0 4px}p{margin:0;color:#758075;line-height:1.5;font-size:13px}.summary{display:flex;justify-content:space-between;align-items:center;margin:20px 0 9px;font-weight:650;font-size:14px}.badge{background:#edf5ef;color:#36744d;border-radius:30px;padding:6px 10px;font-size:12px}.track{height:7px;background:#e9ede9;border-radius:20px;overflow:hidden}.fill{height:100%;background:#559268;width:0;transition:width .2s}.section{border-top:1px solid #e6eae5;padding-top:21px;margin-top:22px}.section p{margin-bottom:12px}.heading-row{display:flex;align-items:center;justify-content:space-between;gap:6px}.item{display:flex;align-items:center;gap:12px;padding:9px 3px;min-height:42px;font-size:15px}.item label{display:flex;gap:12px;align-items:center;flex:1;cursor:pointer;min-width:0}.item input[type=checkbox]{appearance:none;border:1.6px solid #a5b2a5;border-radius:5px;width:20px;height:20px;margin:0;flex:none;position:relative;cursor:pointer}.item input:checked{background:#518d65;border-color:#518d65}.item input:checked:after{content:'✓';color:#fff;position:absolute;top:-3px;left:3px;font-size:17px}.item input:checked+span{text-decoration:line-through;color:#8a958b}.optional{font-size:12px;color:#718075;font-weight:700;margin:10px 0 2px}.footer{border-top:1px solid #e6eae5;margin-top:24px;padding-top:20px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between}.count{font-size:12px;color:#748174}.buttons{display:flex;gap:8px;flex-wrap:wrap}button{background:#fff;border:1px solid #d5ded6;border-radius:10px;padding:10px 12px;font-weight:650;font-size:13px;cursor:pointer;color:#3d5542}button.primary{background:#3d7650;color:white;border-color:#3d7650}button.small{padding:7px 9px;font-size:12px}button.icon{border:none;background:transparent;color:#909b90;padding:6px 8px}button.icon:hover{color:#b44949}.action{margin-top:8px;border:1px dashed #d5dfd6;width:100%;color:#417952;background:#fafdfa;text-align:left}.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin-top:17px}.toolbar button{flex:1}.editor{background:#f5f9f5;border-radius:12px;border:1px solid #e0e9e0;padding:12px;margin:12px 0 0}.editor label{font-weight:650;font-size:12px;display:block;margin-bottom:5px}.editor input,.editor select{width:100%;border:1px solid #cedbce;border-radius:9px;padding:11px;font:inherit;font-size:15px;background:white;color:#26352a}.editor .buttons{margin-top:10px}.hidden{display:none}.tip{margin:20px 0 0;border-radius:12px;background:#f1f7f1;padding:13px 14px;font-size:12px;color:#5d705e;line-height:1.5}#notice{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#24382b;color:white;border-radius:10px;padding:10px 15px;font-size:13px;display:none;max-width:90vw;text-align:center}@media(max-width:380px){.app{padding:20px 15px}h1{font-size:22px}}
+.linkbox{margin-top:16px;background:#f1f7f2;border:1px solid #dce9de;border-radius:16px;padding:15px}.linkbox h2{margin:0 0 5px}.linkbox p{margin-bottom:12px}.linkbox input,.linkbox select{width:100%;border:1px solid #c9d8cb;border-radius:10px;padding:12px;font:inherit;font-size:15px;background:white;min-width:0}.linkbox label{display:block;font-size:12px;font-weight:650;margin:10px 0 6px}.linkbox .hint{font-size:11px;margin-top:7px}.product{margin:5px 0 9px 32px;display:flex;gap:10px;background:#fafcf9;padding:9px;border:1px solid #edf0ea;border-radius:12px;align-items:flex-start}.product img{width:65px;height:80px;object-fit:cover;border-radius:8px;background:#ecf0ec;flex:none}.product .details{min-width:0;flex:1}.product .price{color:#376744;font-weight:700;font-size:13px;margin:5px 0}.product a{font-size:12px;color:#386c4c;word-break:break-all}.product .shop{display:inline-block;border-radius:8px;background:#e8f2e8;padding:7px 9px;text-decoration:none;font-weight:650;margin-top:5px}.product button{margin-top:7px}.linkbox .status{font-size:12px;margin-top:8px;min-height:15px}.product .gallery{display:flex;flex-wrap:wrap;gap:5px;max-width:130px;flex:none}.product .gallery img{width:62px;height:76px;object-fit:cover;border-radius:8px;background:#ecf0ec}.product .description{font-size:11px;color:#69776b;margin:6px 0;line-height:1.45}.product .muted{color:#738174;font-size:12px}.heading-row .small{font-size:11px}
+</style></head><body><main class="app">
+<h1>Sania's Wardrobe Checklist</h1><p>Tick off items as you buy them, or add your own headings and items. Invite Sania to the same list. Both of you can add, edit and check off items in real time.</p>
+<div class="tip" id="connection" style="margin:15px 0 0">Connecting to the shared list…</div><div class="toolbar"><button class="primary" id="invite">↗ Copy invite link</button><span class="badge" id="syncBadge">Connecting</span></div><div class="summary"><span id="progressText">0 items completed</span><span class="badge" id="percent">0%</span></div><div class="track"><div class="fill" id="fill"></div></div>
+<div class="toolbar"><button class="primary" id="showHeading">＋ Add heading</button><button id="showItem">＋ Add item</button></div>
+<form id="headingForm" class="editor hidden"><label for="newHeading">New heading</label><input id="newHeading" placeholder="e.g. Winter outfits" maxlength="75" required><div class="buttons"><button class="primary" type="submit">Save heading</button><button type="button" id="cancelHeading">Cancel</button></div></form>
+<form id="itemForm" class="editor hidden"><label for="newItem">New item</label><input id="newItem" placeholder="e.g. Navy striped shirt" maxlength="100" required><label for="itemSection" style="margin-top:12px">Under heading</label><select id="itemSection"></select><label style="margin-top:12px;font-weight:400"><input id="isOptional" type="checkbox" style="width:auto"> Mark as optional</label><div class="buttons"><button class="primary" type="submit">Save item</button><button type="button" id="cancelItem">Cancel</button></div></form>
+<div class="linkbox"><h2>🔗 Add a product link</h2><p>Paste a shirt or other product link. It gets added automatically to your shared checklist and appears on both phones.</p><label for="linkSection">Save under</label><select id="linkSection"></select><label for="productLink">Product link</label><input id="productLink" type="url" inputmode="url" autocomplete="off" placeholder="Paste a Myntra, H&M, AJIO, Amazon… link"><div class="toolbar"><button type="button" id="addLink" class="primary">＋ Add product</button><span class="badge" id="linkStatus">Ready</span></div><p class="hint">Product details come from the shop when available; a configured image search provides photo suggestions if the shop blocks previews. Verify the exact colour and model. Some stores (including Myntra) may block automated previews. You can still paste photo URLs manually using Edit details.</p></div><div id="sections"></div><div class="footer"><span class="count" id="totalText">0 items checked</span><div class="buttons"><button id="copy">Copy checklist</button><button id="reset">Reset ticks</button></div></div><div class="tip">Changes sync automatically when both of you open the same invite link. Keep this link private: anyone with it can edit the list.</div>
+</main><div id="notice" role="status" aria-live="polite"></div><script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,signInAnonymously} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {getDatabase,ref,onValue,runTransaction,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+const defaults=[{title:'Solid shirts',subtitle:'Plain, without patterns',items:['Brown','Beige','Cream','Baby blue','Pistachio green','Olive green']},{title:'Lining / striped shirts',subtitle:'Preferably thin vertical stripes',items:['Brown + cream stripes','Beige + white stripes','Cream + beige stripes','Baby blue + white stripes','Pistachio green + white stripes','Olive green + cream stripes']},{title:'Checked shirts',subtitle:'Brown checks were specifically mentioned; the others are optional.',items:['Brown checked shirt'],optional:['Beige checked shirt','Olive-green checked shirt']},{title:'Other pastel shirts',subtitle:'Additional pastel colour ideas, not specific colours she named.',optional:['Lavender','Pastel pink','Butter yellow']},{title:'Casual wear',subtitle:'Her additional recommendation',items:['Casual sweatpants']}];
+const uid=()=>('i'+crypto.randomUUID());
+const deepCopy=x=>JSON.parse(JSON.stringify(x));
+const createDefaults = () => defaults.map((section, sectionIndex) => ({
+  id: 'sec' + sectionIndex,
+  title: section.title,
+  subtitle: section.subtitle,
+  items: [
+    ...(section.items || []).map((label, index) => ({ id: 'main'+sectionIndex+'-'+index, label, optional: false })),
+    ...(section.optional || []).map((label, index) => ({ id: 'opt'+sectionIndex+'-'+index, label, optional: true }))
+  ]
+}));
+// Firebase omits empty arrays. An empty heading therefore comes back without `items`.
+// Normalize database data before rendering or applying any write.
+function normalizeSections(value){
+  const list=Array.isArray(value)?value:Object.values(value||{});
+  return list.filter(s=>s&&typeof s==='object').map(s=>({
+    ...s,
+    items:Array.isArray(s.items)?s.items:Object.values(s.items||{})
+  }));
+}
+let sections=createDefaults(),done=new Set(),roomRef=null,ready=false,unsubscribe=null;
+const connection=document.getElementById('connection'),badge=document.getElementById('syncBadge');
+function notice(message){const n=document.getElementById('notice');n.textContent=message;n.style.display='block';clearTimeout(window.noticeTimer);window.noticeTimer=setTimeout(()=>n.style.display='none',2800)}
+function makeButton(label,onclick,cls='small'){const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=label;b.addEventListener('click',onclick);return b}
+async function mutate(change){if(!ready){notice('Still connecting. Please try again.');return false} try {const res=await runTransaction(roomRef,current=>{if(!current)return;const next=deepCopy(current);if(!Array.isArray(next.done))next.done=[];next.sections=normalizeSections(next.sections);change(next);next.updatedAt=Date.now();return next},{applyLocally:false});if(!res.committed){notice('Changes were not saved. Please retry.');return false}return true}catch(e){notice('Could not sync: '+e.message);console.error(e);return false}}
+function render(){let main=0,complete=0;const root=document.getElementById('sections');root.replaceChildren();sections.forEach((s,si)=>{const section=document.createElement('section');section.className='section';const head=document.createElement('div');head.className='heading-row';const h=document.createElement('h2');h.textContent=(si+1)+'. '+s.title;head.append(h);if(s.userAdded)head.append(makeButton('✕',()=>{if(confirm('Delete this heading and all its items for both of you?'))mutate(d=>{d.sections=d.sections.filter(x=>x.id!==s.id);d.done=d.done.filter(id=>!s.items.some(i=>i.id===id))})},'icon'));section.append(head);if(s.subtitle){let p=document.createElement('p');p.textContent=s.subtitle;section.append(p)}let showedOptional=false;s.items.forEach(item=>{if(item.optional&&!showedOptional){const d=document.createElement('div');d.className='optional';d.textContent='Optional';section.append(d);showedOptional=true}if(!item.optional){main++;if(done.has(item.id))complete++}const row=document.createElement('div');row.className='item';const label=document.createElement('label');const check=document.createElement('input');check.type='checkbox';check.checked=done.has(item.id);check.disabled=!ready;check.addEventListener('change',()=>mutate(d=>{const isDone=d.done.includes(item.id);if(!isDone)d.done.push(item.id);else d.done=d.done.filter(x=>x!==item.id)}));const span=document.createElement('span');span.textContent=item.label;label.append(check,span);row.append(label);if(item.userAdded)row.append(makeButton('✕',()=>{if(confirm('Delete "'+item.label+'" for both of you?'))mutate(d=>{const sec=d.sections.find(x=>x.id===s.id);if(sec)sec.items=sec.items.filter(x=>x.id!==item.id);d.done=d.done.filter(x=>x!==item.id)})},'icon'));section.append(row);if(item.productUrl){const card=document.createElement('div');card.className='product';const photos=(Array.isArray(item.images)?item.images:[]).concat(item.imageUrl?[item.imageUrl]:[]).filter((x,i,a)=>typeof x==='string'&&/^https:\/\//.test(x)&&a.indexOf(x)===i).slice(0,5);if(photos.length){const gal=document.createElement('div');gal.className='gallery';for(const src of photos){const im=document.createElement('img');im.src=src;im.alt=item.label;im.loading='lazy';im.referrerPolicy='no-referrer';im.onerror=()=>im.remove();gal.append(im)}card.append(gal)}const details=document.createElement('div');details.className='details';const vendor=document.createElement('div');vendor.className='muted';vendor.textContent=item.vendor||'Product link';details.append(vendor);if(item.description){const desc=document.createElement('p');desc.className='description';desc.textContent=item.description;details.append(desc)}if(item.price){const price=document.createElement('div');price.className='price';price.textContent=item.price;details.append(price)}const a=document.createElement('a');a.className='shop';a.href=item.productUrl;a.target='_blank';a.rel='noopener noreferrer';a.textContent='View product ↗';details.append(a);if(item.imageSource==='image-search-suggestion'){const tag=document.createElement('div');tag.className='photo-source';tag.textContent='Photo found by search — verify exact colour / model';details.append(tag)}
+if(item.searchStatus&&!photos.length){const tip=document.createElement('div');tip.className='photo-source';tip.textContent=item.searchStatus;details.append(tip)}
+details.append(makeButton('↻ Find photos',()=>refreshProduct(s.id,item),'small'));
+details.append(makeButton('✎ Edit details',()=>editProduct(s.id,item),'small'));
+if(item.candidates?.length)details.append(makeButton('▦ Choose photo',()=>showCandidatePhotos(card,s.id,item),'small'));
+card.append(details);section.append(card)}});section.append(makeButton('＋ Add item',()=>openItem(s.id),'small action'));root.append(section)});const pct=main?Math.round(complete/main*100):0;document.getElementById('progressText').textContent=`${complete} of ${main} main items`;document.getElementById('percent').textContent=pct+'%';document.getElementById('fill').style.width=pct+'%';document.getElementById('totalText').textContent=done.size+' total items checked';const select=document.getElementById('itemSection');const chosen=select.value;const linkSel=document.getElementById('linkSection'),linkChosen=linkSel.value;select.replaceChildren();linkSel.replaceChildren();sections.forEach(s=>{for(const el of [select,linkSel]){const o=document.createElement('option');o.value=s.id;o.textContent=s.title;el.append(o)}});if(sections.some(s=>s.id===chosen))select.value=chosen;if(sections.some(s=>s.id===linkChosen))linkSel.value=linkChosen}
+function openHeading(){document.getElementById('itemForm').classList.add('hidden');document.getElementById('headingForm').classList.remove('hidden');document.getElementById('newHeading').focus()}
+function openItem(sectionId){document.getElementById('headingForm').classList.add('hidden');document.getElementById('itemForm').classList.remove('hidden');if(sectionId)document.getElementById('itemSection').value=sectionId;document.getElementById('newItem').focus()}
+document.getElementById('showHeading').onclick=openHeading;document.getElementById('showItem').onclick=()=>openItem();document.getElementById('cancelHeading').onclick=()=>document.getElementById('headingForm').classList.add('hidden');document.getElementById('cancelItem').onclick=()=>document.getElementById('itemForm').classList.add('hidden');
+document.getElementById('headingForm').onsubmit=async e=>{e.preventDefault();const title=document.getElementById('newHeading').value.trim();if(!title)return;const id=uid();const saved=await mutate(d=>d.sections.push({id,title,subtitle:'Your custom category',items:[],userAdded:true}));if(!saved)return;document.getElementById('newHeading').value='';document.getElementById('headingForm').classList.add('hidden');openItem(id)};
+document.getElementById('itemForm').onsubmit=async e=>{e.preventDefault();const label=document.getElementById('newItem').value.trim();const sid=document.getElementById('itemSection').value;const optional=document.getElementById('isOptional').checked;if(!label||!sid)return;const id=uid();const saved=await mutate(d=>{const sec=d.sections.find(x=>x.id===sid);if(!sec)return;const i={id,label,optional,userAdded:true};if(optional)sec.items.push(i);else {const idx=sec.items.findIndex(x=>x.optional);sec.items.splice(idx<0?sec.items.length:idx,0,i)}});if(!saved)return;document.getElementById('newItem').value='';document.getElementById('isOptional').checked=false;document.getElementById('itemForm').classList.add('hidden')};
+document.getElementById('copy').onclick=async()=>{const txt=sections.map(s=>s.title+'\n'+s.items.map(i=>(done.has(i.id)?'☑ ':'☐ ')+i.label+(i.optional?' (optional)':'')).join('\n')).join('\n\n');try{await navigator.clipboard.writeText(txt);notice('Checklist copied!')}catch(e){notice('Copy needs HTTPS or a modern browser.')}};
+document.getElementById('reset').onclick=()=>{if(confirm('Clear all checked items for both of you?'))mutate(d=>d.done=[])};
+document.getElementById('invite').onclick=async()=>{if(!ready){notice('Connect first to create the share link.');return}try{await navigator.clipboard.writeText(location.href);notice('Invite link copied! Send it to Sania.')}catch(e){prompt('Copy this link and send it to Sania:',location.href)}};
+
+// Product URLs become shared checklist entries. A Netlify function reads public Open Graph
+// metadata on supported shopping websites; all other links still save immediately.
+const linkInput=document.getElementById('productLink');
+const linkBadge=document.getElementById('linkStatus');
+function normalizeProductUrl(input){try{const url=new URL(input.trim());if(!['https:','http:'].includes(url.protocol)||!url.hostname.includes('.'))return null;url.hash='';for(const k of [...url.searchParams.keys()]){if(/^(utm_|fbclid$|gclid$|igshid$)/i.test(k))url.searchParams.delete(k)}return url.toString()}catch{return null}}
+function fallbackTitle(url){try{const u=new URL(url);const parts=u.pathname.split('/').filter(Boolean);const slug=/myntra\.com$/.test(u.hostname)&&parts.length>=3?parts[2]:(parts.at(-1)==='buy'&&parts.length>=3?parts[2]:parts.at(-1))||'Saved product';return decodeURIComponent(slug).replace(/\.(html?|php)$/i,'').replace(/[-_]+/g,' ').replace(/\b\w/g,x=>x.toUpperCase()).slice(0,95)||'Saved product'}catch{return 'Saved product'}}
+let addingProduct=false;
+async function requestPreview(url){
+ const response=await fetch('/.netlify/functions/product-preview?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(21000)});
+ const data=await response.json();
+ if(!response.ok)throw Error(data.error||'Preview unavailable');
+ return data;
+}
+function previewFields(result){
+ const candidates=(result.candidates||[]).slice(0,8).map(c=>({image:c.image||'',thumbnail:c.thumbnail||'',source:c.source||'',title:c.title||''}));
+ const images=(result.images||[]).filter(v=>typeof v==='string'&&v.startsWith('https://')).slice(0,5);
+ return {images,imageUrl:images[0]||'',imageSource:result.imageSource||'',candidates,
+         searchStatus:result.searchStatus||'',price:result.price||'',description:result.description||''};
+}
+async function addProductFromField(){
+ if(addingProduct)return;
+ const url=normalizeProductUrl(linkInput.value),sid=document.getElementById('linkSection').value;
+ if(!url){notice('Paste a valid product URL');return}
+ if(!sid){notice('Choose a heading');return}
+ if(!ready){notice('Wait until connected');return}
+ if(sections.some(s=>s.items.some(i=>i.productUrl===url))){notice('Already saved: use Find photos on the existing item');return}
+ addingProduct=true;linkBadge.textContent='Finding photos…';document.getElementById('addLink').disabled=true;
+ let data={title:fallbackTitle(url),vendor:new URL(url).hostname.replace(/^www\./,''),images:[],candidates:[],searchStatus:''};
+ try{const result=await requestPreview(url);data={...data,...previewFields(result),title:result.title||data.title,vendor:result.vendor||data.vendor};}
+ catch(e){data.searchStatus='Preview unavailable: '+e.message;}
+ try{
+   const id=uid();let duplicate=false;
+   const saved=await mutate(d=>{
+    if(d.sections.some(s=>s.items.some(i=>i.productUrl===url))){duplicate=true;return}
+    const sec=d.sections.find(s=>s.id===sid);if(!sec)return;
+    const item={id,label:data.title,optional:false,userAdded:true,productUrl:url,
+       imageUrl:data.imageUrl||'',images:data.images||[],candidates:data.candidates||[],imageSource:data.imageSource||'',
+       searchStatus:data.searchStatus||'',price:data.price||'',description:data.description||'',vendor:data.vendor};
+    const at=sec.items.findIndex(x=>x.optional);sec.items.splice(at<0?sec.items.length:at,0,item);
+   });
+   if(saved&&!duplicate){linkInput.value='';notice(data.images?.length?'Product and photos added!':data.candidates?.length?'Product added — choose a photo from search results':'Product saved; photos unavailable');}
+   else if(duplicate)notice('Product already saved');
+ }finally{addingProduct=false;linkBadge.textContent='Ready';document.getElementById('addLink').disabled=false;}
+}
+async function refreshProduct(sectionId,item){
+ notice('Looking for matching photos…');
+ try{
+  const result=await requestPreview(item.productUrl);
+  const update=previewFields(result);
+  const saved=await mutate(d=>{
+    const target=d.sections.find(s=>s.id===sectionId)?.items.find(i=>i.id===item.id);
+    if(!target)return;
+    if(result.title&&(!target.label||target.label==='Site Maintenance'))target.label=result.title;
+    if(result.price)target.price=result.price;
+    if(result.description)target.description=result.description;
+    if(update.images.length){target.images=update.images;target.imageUrl=update.imageUrl;target.imageSource=update.imageSource;}
+    target.candidates=update.candidates;
+    target.searchStatus=update.searchStatus;
+  });
+  if(saved)notice(update.images.length?'Product photos updated':update.candidates.length?'Photos found — tap Choose photo':update.searchStatus||'No photos available');
+ }catch(e){notice('Photo search failed: '+e.message)}
+}
+function showCandidatePhotos(card,sectionId,item){
+ const old=card.querySelector('.candidate-panel');if(old){old.remove();return}
+ const panel=document.createElement('div');panel.className='candidate-panel';
+ const title=document.createElement('p');title.textContent='Possible matches from image search. Choose the correct colour and model:';panel.append(title);
+ const grid=document.createElement('div');grid.className='candidate-grid';
+ for(const c of (item.candidates||[])){
+  const src=c.thumbnail||c.image;if(!src)continue;
+  const button=document.createElement('button');button.type='button';
+  const image=document.createElement('img');image.src=src;image.alt=c.title||'Possible product photo';image.loading='lazy';image.referrerPolicy='no-referrer';
+  const label=document.createElement('small');label.textContent=c.title||'Possible match';
+  button.append(image,label);
+  button.onclick=async()=>{
+   const link=c.thumbnail||c.image;
+   if(await mutate(d=>{const t=d.sections.find(s=>s.id===sectionId)?.items.find(i=>i.id===item.id);if(t){t.images=[link];t.imageUrl=link;t.imageSource='image-search-selected'}}))notice('Chosen photo saved for both of you');
+  };
+  grid.append(button);
+ }
+ panel.append(grid);card.append(panel);
+}
+function editProduct(sectionId,item){
+ const label=prompt('Product name',item.label);if(label===null||!label.trim())return;
+ const price=prompt('Price (leave empty if unknown)',item.price||'');if(price===null)return;
+ const description=prompt('Product details (optional)',item.description||'');if(description===null)return;
+ const existing=(item.images?.length?item.images:[item.imageUrl||'']).filter(Boolean);
+ const photoText=prompt('Photo URLs (optional): paste up to 5 direct image URLs, one per line. Find them by opening the product image in a new tab.',existing.join('\n'));
+ if(photoText===null)return;
+ const images=photoText.split(/[\n,]+/).map(v=>v.trim()).filter(v=>{try{const u=new URL(v);return u.protocol==='https:'}catch{return false}}).slice(0,5);
+ mutate(d=>{const match=d.sections.find(s=>s.id===sectionId)?.items.find(i=>i.id===item.id);if(match){match.label=label.trim().slice(0,120);match.price=price.trim().slice(0,45);match.description=description.trim().slice(0,300);match.imageUrl=images[0]||'';match.images=images}})
+}
+document.getElementById('addLink').onclick=addProductFromField;
+linkInput.addEventListener('paste',()=>{setTimeout(()=>{if(normalizeProductUrl(linkInput.value))addProductFromField()},160)});
+linkInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addProductFromField()}});
+
+async function start(){const cfg=window.FIREBASE_CONFIG;if(!cfg||!cfg.apiKey||cfg.apiKey.startsWith('PASTE_')){badge.textContent='Setup needed';connection.textContent='One-time setup needed: paste your Firebase configuration into config.js and publish this app on HTTPS. See README.txt.';render();return}if(location.protocol==='file:'){badge.textContent='Hosting needed';connection.textContent='Upload index.html and config.js to an HTTPS host before sharing. See README.txt.';render();return}try{const app=initializeApp(cfg);const auth=getAuth(app);const db=getDatabase(app);await signInAnonymously(auth);const params=new URLSearchParams(location.hash.substring(1));let room=params.get('room');if(!room||!(/^[a-f0-9]{40}$/.test(room))){const bytes=crypto.getRandomValues(new Uint8Array(20));room=[...bytes].map(x=>x.toString(16).padStart(2,'0')).join('');params.set('room',room);location.replace(location.pathname+location.search+'#'+params.toString());return}roomRef=ref(db,'rooms/'+room);await runTransaction(roomRef,current=>current??{sections:createDefaults(),done:[],updatedAt:Date.now()},{applyLocally:false});unsubscribe=onValue(roomRef,snapshot=>{const data=snapshot.val();if(!data||!data.sections){badge.textContent='Waiting';return}sections=normalizeSections(data.sections);done=new Set(data.done||[]);ready=true;badge.textContent='● Live synced';connection.textContent='Connected! Both of you can tick items, add headings and add items. Tap “Copy invite link” to send the same room to Sania.';render()},err=>{ready=false;badge.textContent='Sync error';connection.textContent='Could not access shared checklist. Check anonymous sign-in, Realtime Database URL and rules. '+err.message});}catch(e){badge.textContent='Connection error';connection.textContent='Unable to connect: '+e.message+' Check Firebase setup and reload.';console.error(e)}render()}
+start();
+</script></body></html>

@@ -1,10 +1,288 @@
 {
   "rules": {
+    ".read": false,
+    ".write": false,
+    "roomAccess": {
+      "$roomId": {
+        ".read": "auth != null && data.child('members').child(auth.uid).exists()",
+        ".write": "auth != null && newData.exists() && $roomId.matches(/^[a-f0-9]{40}$/) && ((!data.exists() && !root.child('rooms').child($roomId).exists() && auth.token.firebase.sign_in_provider != 'anonymous' && newData.child('ownerId').val() == auth.uid) || (data.exists() && data.child('ownerId').val() == auth.uid))",
+        ".validate": "newData.hasChildren(['ownerId','members']) && newData.child('members').child(newData.child('ownerId').val()).val() == 'owner' && (!data.exists() || newData.child('ownerId').val() == data.child('ownerId').val())",
+        "ownerId": {
+          ".validate": "newData.isString()"
+        },
+        "members": {
+          "$uid": {
+            ".validate": "newData.val() == 'editor' || newData.val() == 'viewer' || (newData.val() == 'owner' && $uid == newData.parent().parent().child('ownerId').val())"
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
     "rooms": {
       "$roomId": {
-        ".read": "auth != null && $roomId.matches(/^[a-f0-9]{40}$/)",
-        ".write": "auth != null && $roomId.matches(/^[a-f0-9]{40}$/) && newData.hasChildren(['sections','updatedAt'])",
-        ".validate": "newData.hasChildren(['sections','updatedAt']) && newData.child('sections').numChildren() <= 100"
+        ".read": "auth != null && $roomId.matches(/^[a-f0-9]{40}$/) && ((!root.child('roomAccess').child($roomId).exists() && !data.child('ownerId').exists()) || root.child('roomAccess').child($roomId).child('members').child(auth.uid).exists())",
+        ".write": "auth != null && $roomId.matches(/^[a-f0-9]{40}$/) && newData.exists() && ((!root.child('roomAccess').child($roomId).exists() && data.exists() && !data.child('ownerId').exists() && !newData.child('ownerId').exists()) || root.child('roomAccess').child($roomId).child('members').child(auth.uid).val() == 'owner' || root.child('roomAccess').child($roomId).child('members').child(auth.uid).val() == 'editor')",
+        ".validate": "newData.hasChildren(['updatedAt']) && newData.child('updatedAt').isNumber() && (!root.child('roomAccess').child($roomId).exists() || (newData.child('ownerId').val() == root.child('roomAccess').child($roomId).child('ownerId').val() && newData.child('schemaVersion').val() == 2))",
+        "sections": {
+          "$section": {
+            ".validate": "$section.matches(/^(0|[1-9][0-9]?)$/) && newData.hasChildren(['id','title'])",
+            "id": {
+              ".validate": "newData.isString() && newData.val().length <= 80"
+            },
+            "title": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "subtitle": {
+              ".validate": "newData.isString() && newData.val().length <= 500"
+            },
+            "userAdded": {
+              ".validate": "newData.isBoolean()"
+            },
+            "items": {
+              "$item": {
+                ".validate": "$item.matches(/^(0|[1-9][0-9]?|1[0-9][0-9])$/) && newData.hasChildren(['id','label','optional'])",
+                "id": {
+                  ".validate": "newData.isString() && newData.val().length <= 80"
+                },
+                "label": {
+                  ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
+                },
+                "optional": {
+                  ".validate": "newData.isBoolean()"
+                },
+                "productUrl": {
+                  ".validate": "newData.isString() && newData.val().length <= 2500 && (newData.val().beginsWith('https://') || newData.val().beginsWith('http://'))"
+                },
+                "paidMinor": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000"
+                },
+                "purchasedAt": {
+                  ".validate": "newData.isNumber()"
+                },
+                "price": {
+                  ".validate": "newData.isString() && newData.val().length <= 45"
+                },
+                "description": {
+                  ".validate": "newData.isString() && newData.val().length <= 500"
+                },
+                "images": {
+                  "$image": {
+                    ".validate": "$image.matches(/^[0-4]$/) && newData.isString() && newData.val().length <= 4000 && newData.val().beginsWith('https://')"
+                  },
+                  ".validate": "newData.hasChildren()"
+                },
+                "candidates": {
+                  "$candidate": {
+                    ".validate": "$candidate.matches(/^[0-7]$/) && newData.hasChildren(['title'])",
+                    "title": {
+                      ".validate": "newData.isString() && newData.val().length <= 120"
+                    },
+                    "image": {
+                      ".validate": "newData.isString() && newData.val().length <= 4000 && (newData.val() == '' || newData.val().beginsWith('https://'))"
+                    },
+                    "thumbnail": {
+                      ".validate": "newData.isString() && newData.val().length <= 4000 && (newData.val() == '' || newData.val().beginsWith('https://'))"
+                    },
+                    "source": {
+                      ".validate": "newData.isString() && newData.val().length <= 4000 && (newData.val() == '' || newData.val().beginsWith('https://'))"
+                    }
+                  },
+                  ".validate": "newData.hasChildren()"
+                },
+                "tags": {
+                  "$tag": {
+                    ".validate": "$tag.matches(/^(0|[1-9]|[12][0-9])$/) && newData.isString() && newData.val().length <= 60"
+                  },
+                  ".validate": "newData.hasChildren()"
+                },
+                "vendor": {
+                  ".validate": "newData.isString() && newData.val().length <= 150"
+                },
+                "imageSource": {
+                  ".validate": "newData.isString() && newData.val().length <= 80"
+                },
+                "searchStatus": {
+                  ".validate": "newData.isString() && newData.val().length <= 500"
+                },
+                "needId": {
+                  ".validate": "newData.isString() && newData.val().length <= 80"
+                },
+                "size": {
+                  ".validate": "newData.isString() && newData.val().length <= 30"
+                },
+                "color": {
+                  ".validate": "newData.isString() && newData.val().length <= 40"
+                },
+                "userAdded": {
+                  ".validate": "newData.isBoolean()"
+                },
+                "favorite": {
+                  ".validate": "newData.isBoolean()"
+                },
+                "wishlist": {
+                  ".validate": "newData.isBoolean()"
+                },
+                "createdAt": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0"
+                },
+                "updatedAt": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0"
+                },
+                "imageUrl": {
+                  ".validate": "newData.isString() && newData.val().length <= 4000 && (newData.val() == '' || newData.val().beginsWith('https://'))"
+                },
+                "previewStatus": {
+                  ".validate": "newData.val() == 'pending' || newData.val() == 'ready' || newData.val() == 'unavailable'"
+                }
+              },
+              ".validate": "newData.hasChildren()"
+            }
+          },
+          ".validate": "newData.hasChildren()"
+        },
+        "done": {
+          "$id": {
+            ".validate": "$id.matches(/^(0|[1-9][0-9]{0,3}|1[0-9]{4})$/) && newData.isString() && newData.val().length <= 80"
+          },
+          ".validate": "newData.hasChildren()"
+        },
+        "budgetMinor": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000"
+        },
+        "activity": {
+          "$event": {
+            ".validate": "$event.matches(/^(0|[1-9]|[1-5][0-9])$/) && newData.hasChildren(['id','text','actor','at']) && newData.child('text').isString() && newData.child('text').val().length <= 200 && newData.child('actor').isString() && newData.child('actor').val().length <= 200 && newData.child('at').isNumber()"
+          },
+          ".validate": "newData.hasChildren()"
+        }
+      }
+    },
+    "users": {
+      "$uid": {
+        "privateNotes": {
+          ".read": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
+          ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
+          "$note": {
+            ".validate": "newData.hasChildren(['title','body','updatedAt'])",
+            "title": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "body": {
+              ".validate": "newData.isString() && newData.val().length <= 5000"
+            },
+            "updatedAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "privateItems": {
+          ".read": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
+          ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
+          "$itemId": {
+            ".validate": "newData.hasChildren(['id','label','optional','categoryId']) && newData.child('id').val() == $itemId",
+            "id": {
+              ".validate": "newData.isString() && newData.val().length <= 80"
+            },
+            "label": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
+            },
+            "optional": {
+              ".validate": "newData.isBoolean()"
+            },
+            "productUrl": {
+              ".validate": "newData.isString() && newData.val().length <= 2500 && (newData.val().beginsWith('https://') || newData.val().beginsWith('http://'))"
+            },
+            "paidMinor": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000"
+            },
+            "purchasedAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "price": {
+              ".validate": "newData.isString() && newData.val().length <= 45"
+            },
+            "description": {
+              ".validate": "newData.isString() && newData.val().length <= 500"
+            },
+            "images": {
+              "$image": {
+                ".validate": "$image.matches(/^[0-4]$/) && newData.isString() && newData.val().length <= 4000 && newData.val().beginsWith('https://')"
+              },
+              ".validate": "newData.hasChildren()"
+            },
+            "candidates": {
+              "$candidate": {
+                ".validate": "$candidate.matches(/^[0-7]$/) && newData.hasChildren(['title'])",
+                "title": {
+                  ".validate": "newData.isString() && newData.val().length <= 120"
+                },
+                "image": {
+                  ".validate": "newData.isString() && newData.val().length <= 4000 && (newData.val() == '' || newData.val().beginsWith('https://'))"
+                },
+                "thumbnail": {
+                  ".validate": "newData.isString() && newData.val().length <= 4000 && (newData.val() == '' || newData.val().beginsWith('https://'))"
+                },
+                "source": {
+                  ".validate": "newData.isString() && newData.val().length <= 4000 && (newData.val() == '' || newData.val().beginsWith('https://'))"
+                }
+              },
+              ".validate": "newData.hasChildren()"
+            },
+            "tags": {
+              "$tag": {
+                ".validate": "$tag.matches(/^(0|[1-9]|[12][0-9])$/) && newData.isString() && newData.val().length <= 60"
+              },
+              ".validate": "newData.hasChildren()"
+            },
+            "vendor": {
+              ".validate": "newData.isString() && newData.val().length <= 150"
+            },
+            "imageSource": {
+              ".validate": "newData.isString() && newData.val().length <= 80"
+            },
+            "searchStatus": {
+              ".validate": "newData.isString() && newData.val().length <= 500"
+            },
+            "needId": {
+              ".validate": "newData.isString() && newData.val().length <= 80"
+            },
+            "size": {
+              ".validate": "newData.isString() && newData.val().length <= 30"
+            },
+            "color": {
+              ".validate": "newData.isString() && newData.val().length <= 40"
+            },
+            "userAdded": {
+              ".validate": "newData.isBoolean()"
+            },
+            "favorite": {
+              ".validate": "newData.isBoolean()"
+            },
+            "wishlist": {
+              ".validate": "newData.isBoolean()"
+            },
+            "createdAt": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "updatedAt": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "imageUrl": {
+              ".validate": "newData.isString() && newData.val().length <= 4000 && (newData.val() == '' || newData.val().beginsWith('https://'))"
+            },
+            "previewStatus": {
+              ".validate": "newData.val() == 'pending' || newData.val() == 'ready' || newData.val() == 'unavailable'"
+            },
+            "categoryId": {
+              ".validate": "newData.isString() && newData.val().length <= 80"
+            }
+          }
+        }
       }
     }
   }

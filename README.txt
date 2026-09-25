@@ -1,3 +1,5 @@
+LEGACY DOCUMENTATION — the React rebuild is documented in README.md.
+
 SANIA'S SHARED WARDROBE CHECKLIST — REAL-TIME VERSION
 
 What it does

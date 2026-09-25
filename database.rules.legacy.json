@@ -1,0 +1,11 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomId": {
+        ".read": "auth != null && $roomId.matches(/^[a-f0-9]{40}$/)",
+        ".write": "auth != null && $roomId.matches(/^[a-f0-9]{40}$/) && newData.hasChildren(['sections','updatedAt'])",
+        ".validate": "newData.hasChildren(['sections','updatedAt']) && newData.child('sections').numChildren() <= 100"
+      }
+    }
+  }
+}

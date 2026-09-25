@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # OS files
 .DS_Store
@@ -34,3 +33,11 @@ npm-debug.log*
 # Firebase
 .firebase/
 firebase-debug.log
+
+playwright-report/
+test-results/
+.env.production
+backups/
+*.tsbuildinfo
+
+test-results-connected/
