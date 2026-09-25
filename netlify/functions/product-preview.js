@@ -1,16 +1,33 @@
-// Public e-commerce metadata preview. Limited to known retail domains to avoid
-// arbitrary server-side URL fetching. Site protections can still prevent previews.
-const allowed = ['myntra.com','ajio.com','hm.com','zara.com','uniqlo.com','amazon.in','amazon.com','flipkart.com','meesho.com','adidas.co.in','nike.com','snitch.co.in','westside.com','tatacliq.com','nykaafashion.com','marksandspencer.in','bewakoof.com','thebearhouse.com','urbanic.com','souledstore.com','www2.hm.com'];
-const matchDomain = host => allowed.some(d => host === d || host.endsWith('.'+d));
-const privateHost = host => host === 'localhost' || host.endsWith('.local') || /^\d+(\.\d+){3}$/.test(host) || host.includes(':') || host.endsWith('.internal');
-const decode = s => s?.replace(/&(?:amp|quot|apos|lt|gt|#39|#x27|#x2F);/g, x => ({'&amp;':'&','&quot;':'"','&apos;':"'",'&lt;':'<','&gt;':'>','&#39;':"'",'&#x27;':"'",'&#x2F;':'/'}[x]||x)).replace(/\s+/g,' ').trim() || '';
-function meta(html,key){const tags = html.match(/<meta\b[^>]*>/gi) || [];for(const tag of tags){const attrs={};for(const m of tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g))attrs[m[1].toLowerCase()]=m[2]??m[3]??m[4];if([attrs.property,attrs.name].includes(key))return decode(attrs.content)}return ''}
+// Public product metadata only. Never supplies fabricated photos or prices.
+// Some stores block server access; the UI still saves the link and lets users edit.
+const allowed=['myntra.com','ajio.com','hm.com','zara.com','uniqlo.com','amazon.in','amazon.com','flipkart.com','meesho.com','adidas.co.in','nike.com','snitch.co.in','westside.com','tatacliq.com','nykaafashion.com','marksandspencer.in','bewakoof.com','thebearhouse.com','urbanic.com','souledstore.com'];
+const match=h=>allowed.some(d=>h===d||h.endsWith('.'+d));
+const decode=s=>String(s||'').replace(/&(?:amp|quot|apos|lt|gt|#39|#x27);/g,t=>({'&amp;':'&','&quot;':'"','&apos;':"'",'&lt;':'<','&gt;':'>','&#39;':"'",'&#x27;':"'"}[t]||t)).replace(/\s+/g,' ').trim();
+function readMeta(html){const result={};for(const tag of html.match(/<meta\b[^>]*>/gi)||[]){const attrs={};for(const m of tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g))attrs[m[1].toLowerCase()]=m[2]??m[3]??m[4];const key=(attrs.property||attrs.name||'').toLowerCase();if(key&&attrs.content){if(result[key]===undefined)result[key]=decode(attrs.content);else if(key==='og:image')result[key]+='\n'+decode(attrs.content)}}return result}
+function productsFromJsonLd(html){const nodes=[];const walk=x=>{if(!x||typeof x!=='object')return;if(Array.isArray(x)){x.forEach(walk);return}if(String(x['@type']||'').toLowerCase().includes('product'))nodes.push(x);if(x['@graph'])walk(x['@graph']);if(x.mainEntity)walk(x.mainEntity)};for(const match of html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)){try{walk(JSON.parse(match[1]))}catch{}}return nodes}
+function cleanImages(raw,base){const a=Array.isArray(raw)?raw:(typeof raw==='string'?raw.split('\n'):[raw]);return [...new Set(a.map(x=>{if(x&&typeof x==='object')x=x.url||x.contentUrl;try{if(!x||typeof x!=='string')return '';const u=new URL(x,base);return u.protocol==='https:'?u.href:''}catch{return ''}}).filter(Boolean))].slice(0,5)}
+function fallbackTitle(url){const bits=url.pathname.split('/').filter(Boolean);const slug=url.hostname.endsWith('myntra.com')&&bits.length>2?bits[2]:(bits.at(-1)==='buy'?bits.at(-3):bits.at(-1));return decode(decodeURIComponent(slug||'Saved product').replace(/[-_]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase())).slice(0,120)}
+const headers={'content-type':'application/json; charset=utf-8','cache-control':'public,max-age=900'};
 exports.handler=async event=>{
- const headers={'content-type':'application/json; charset=utf-8','cache-control':'public,max-age=900'};
- try{const raw=event.queryStringParameters?.url;if(!raw||raw.length>2500)return {statusCode:400,headers,body:JSON.stringify({error:'Invalid link'})};const url=new URL(raw);if(url.protocol!=='https:'||privateHost(url.hostname)||!matchDomain(url.hostname))return {statusCode:422,headers,body:JSON.stringify({error:'Store not supported for previews; the link can still be saved'})};
- let target=url;let result;for(let i=0;i<3;i++){result=await fetch(target,{redirect:'manual',signal:AbortSignal.timeout(6500),headers:{'user-agent':'Mozilla/5.0 (compatible; WardrobeLinkPreview/1.0)','accept':'text/html'}});if(result.status>=300&&result.status<400){target=new URL(result.headers.get('location')||'',target);if(target.protocol!=='https:'||privateHost(target.hostname)||!matchDomain(target.hostname))throw Error('Unsafe redirect');continue}break}
- if(!result?.ok||!result.headers.get('content-type')?.includes('text/html'))throw Error('Shop did not provide page metadata');const reader=result.body.getReader();let chunks=[],length=0;while(length<260000){const {done,value}=await reader.read();if(done)break;chunks.push(value);length+=value.length}await reader.cancel();const html=new TextDecoder().decode(Buffer.concat(chunks.map(x=>Buffer.from(x))));
- const title=meta(html,'og:title')||meta(html,'twitter:title')||decode(html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]||'');let img=meta(html,'og:image')||meta(html,'twitter:image');if(img){try{img=new URL(img,target).href;if(!img.startsWith('https://'))img=''}catch{img=''}}let price=meta(html,'product:price:amount')||meta(html,'og:price:amount')||meta(html,'twitter:data1');const currency=meta(html,'product:price:currency')||meta(html,'og:price:currency');if(price&&currency)price=currency+' '+price;
- return {statusCode:200,headers,body:JSON.stringify({title:title.slice(0,120),image:img,price:price.slice(0,45),vendor:target.hostname.replace(/^www\./,'')})};
- }catch(error){return {statusCode:502,headers,body:JSON.stringify({error:'Product preview unavailable; the link can still be saved'})}}
+ try{
+  const raw=event.queryStringParameters?.url;if(!raw||raw.length>2500)return{statusCode:400,headers,body:JSON.stringify({error:'Missing/invalid link'})};
+  const url=new URL(raw);if(url.protocol!=='https:'||url.username||url.password||!match(url.hostname.toLowerCase()))return{statusCode:422,headers,body:JSON.stringify({error:'Unsupported store'})};
+  let page=url,response;
+  for(let i=0;i<3;i++){
+   response=await fetch(page,{redirect:'manual',signal:AbortSignal.timeout(7500),headers:{'user-agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36','accept':'text/html,application/xhtml+xml','accept-language':'en-IN,en;q=0.9'}});
+   if(response.status>=300&&response.status<400){const location=response.headers.get('location');if(!location)throw Error('redirect without location');page=new URL(location,page);if(page.protocol!=='https:'||!match(page.hostname.toLowerCase()))throw Error('unsafe redirect');continue}break
+  }
+  if(!response?.ok||!response.headers.get('content-type')?.includes('text/html'))throw Error('Store blocked the preview');
+  const reader=response.body.getReader();const chunks=[];let length=0;while(length<850000){const {done,value}=await reader.read();if(done)break;chunks.push(Buffer.from(value));length+=value.length}await reader.cancel();const html=Buffer.concat(chunks).toString('utf8');
+  if(/<title[^>]*>\s*(?:site maintenance|access denied|oops!)/i.test(html))throw Error('Store blocked preview');
+  const meta=readMeta(html),p=productsFromJsonLd(html)[0]||{};
+  const offer=Array.isArray(p.offers)?p.offers[0]:p.offers||{};
+  let price=offer.price||offer.lowPrice||meta['product:price:amount']||meta['og:price:amount']||'';
+  const currency=offer.priceCurrency||meta['product:price:currency']||meta['og:price:currency']||'INR';
+  if(price)price=(currency==='INR'?'₹':currency+' ')+String(price).replace(/^[₹\s]+/,'');
+  const images=cleanImages([...(Array.isArray(p.image)?p.image:[p.image]),meta['og:image'],meta['twitter:image']],page);
+  const title=decode(p.name||meta['og:title']||meta['twitter:title']||html.match(/<title[^>]*>([^<]*)/i)?.[1]||fallbackTitle(url)).slice(0,120);
+  const description=decode(p.description||meta.description||meta['og:description']).slice(0,300);
+  return{statusCode:200,headers,body:JSON.stringify({title,description,price:String(price).slice(0,45),images,image:images[0]||'',vendor:page.hostname.replace(/^www\./,'')})};
+ }catch(e){return{statusCode:502,headers,body:JSON.stringify({error:'Store unavailable for previews; product link can still be saved'})}}
 };
