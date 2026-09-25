@@ -1,302 +1,46 @@
-// Sania's Wardrobe: public product metadata preview.
-// Some retailers (notably Myntra) may block server requests. We do not
-// manufacture product photos or prices or attempt to bypass access controls.
-// No packages or Netlify environment variables are required.
+
+/*
+ * Sania's Wardrobe — Product Preview
+ *
+ * 1. Fetch public product details from supported stores.
+ * 2. Fall back to SerpApi Google Images when photos are unavailable.
+ * 3. Return possible photo matches for user confirmation.
+ *
+ * Required Netlify environment variable: SERPAPI_KEY
+ * No additional npm packages required.
+ */
 
 const STORES = [
-  'myntra.com', 'ajio.com', 'hm.com', 'zara.com', 'uniqlo.com',
-  'amazon.in', 'amazon.com', 'flipkart.com', 'meesho.com',
-  'adidas.co.in', 'nike.com', 'snitch.co.in', 'westside.com',
-  'tatacliq.com', 'nykaafashion.com', 'marksandspencer.in',
-  'bewakoof.com', 'thebearhouse.com', 'urbanic.com', 'souledstore.com'
+  "myntra.com",
+  "ajio.com",
+  "hm.com",
+  "zara.com",
+  "uniqlo.com",
+  "amazon.in",
+  "amazon.com",
+  "flipkart.com",
+  "meesho.com",
+  "adidas.co.in",
+  "nike.com",
+  "snitch.co.in",
+  "westside.com",
+  "tatacliq.com",
+  "nykaafashion.com",
+  "marksandspencer.in",
+  "bewakoof.com",
+  "thebearhouse.com",
+  "urbanic.com",
+  "souledstore.com"
 ];
-const allowedHost = host => STORES.some(domain =>
-  host === domain || host.endsWith('.' + domain)
-);
+
+const allowedHost = host =>
+  STORES.some(
+    domain => host === domain || host.endsWith("." + domain)
+  );
+
 const headers = {
-  'content-type': 'application/json; charset=utf-8',
-  'cache-control': 'public, max-age=600'
-};
-const send = (statusCode, data) => ({
-  statusCode, headers, body: JSON.stringify(data)
-});
-
-function decode(value) {
-  return String(value ?? '')
-    .replace(/&#(x[\da-f]+|\d+);/gi, (m, n) => {
-      const v = n[0].toLowerCase() === 'x'
-        ? parseInt(n.slice(1), 16) : parseInt(n, 10);
-      return Number.isFinite(v) && v > 0 && v <= 0x10ffff
-        ? String.fromCodePoint(v) : m;
-    })
-    .replace(/&(?:amp|quot|apos|lt|gt|nbsp);/gi, m => ({
-      '&amp;': '&', '&quot;': '"', '&apos;': "'", '&lt;': '<',
-      '&gt;': '>', '&nbsp;': ' '
-    })[m.toLowerCase()] || m)
-    .replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-}
-function attrs(tag) {
-  const out = {};
-  for (const m of tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)) {
-    out[m[1].toLowerCase()] = decode(m[2] ?? m[3] ?? m[4]);
-  }
-  return out;
-}
-function readMeta(html) {
-  const out = {};
-  for (const tag of html.match(/<meta\b[^>]*>/gi) || []) {
-    const a = attrs(tag), key = (a.property || a.name || '').toLowerCase();
-    if (!key || !a.content) continue;
-    if (!out[key]) out[key] = [];
-    out[key].push(a.content);
-  }
-  return out;
-}
-const first = (meta, ...keys) => keys.flatMap(key => meta[key] || [])[0] || '';
-function productsFromJsonLd(html) {
-  const products = [];
-  const seen = new Set();
-  function walk(x) {
-    if (!x || typeof x !== 'object' || seen.has(x)) return;
-    seen.add(x);
-    if (Array.isArray(x)) return x.forEach(walk);
-    const types = [x['@type']].flat().map(t => String(t).toLowerCase());
-    if (types.some(t => /(?:^|\/)product$/.test(t))) products.push(x);
-    for (const key of ['@graph', 'mainEntity', 'itemListElement']) walk(x[key]);
-  }
-  for (const script of html.matchAll(/<script\b[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
-    try { walk(JSON.parse(script[1].trim())); } catch { /* malformed retail markup */ }
-  }
-  return products;
-}
-function safeImage(raw, base) {
-  try {
-    if (raw && typeof raw === 'object') raw = raw.url || raw.contentUrl || raw.src;
-    if (!raw || typeof raw !== 'string') return '';
-    const url = new URL(decode(raw), base);
-    return url.protocol === 'https:' && !url.username && !url.password
-      ? url.toString() : '';
-  } catch { return ''; }
-}
-function cleanImages(raw, base) {
-  const list = raw.flat(Infinity)
-    .flatMap(v => typeof v === 'string' && v.includes('\n') ? v.split('\n') : [v]);
-  return [...new Set(list.map(v => safeImage(v, base)).filter(Boolean))].slice(0, 5);
-}
-function fallbackTitle(url) {
-  const parts = url.pathname.split('/').filter(Boolean);
-  let slug = parts.at(-1) === 'buy' ? parts.at(-3) : parts.at(-1);
-  if (url.hostname.endsWith('myntra.com') && parts.length >= 3) slug = parts[2];
-  try { slug = decodeURIComponent(slug || 'Saved product'); } catch { /* keep slug */ }
-  return decode(slug.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase())).slice(0, 120);
-}
-function maintenancePage(html, title) {
-  const symptom = /^(?:site maintenance|access denied|temporarily unavailable|just a moment|service unavailable|oops!?|are you a robot|request blocked|attention required)/i;
-  return symptom.test(title.trim()) ||
-    /(?:our site is currently under maintenance|enable javascript and cookies to continue|access to this page has been denied)/i.test(html.slice(0, 35000));
-}
-function formatPrice(raw, currency) {
-  if (raw === null || raw === undefined || raw === '') return '';
-  const amount = String(raw).trim().replace(/^[₹\s]+/, '');
-  if (!/^\d[\d,.]*(?:\.\d+)?$/.test(amount)) return '';
-  const symbol = String(currency || 'INR').toUpperCase() === 'INR'
-    ? '₹' : String(currency).toUpperCase() + ' ';
-  return (symbol + amount).slice(0, 45);
-}
-async function readPage(url) {
-  let current = url;
-  for (let hop = 0; hop < 4; hop++) {
-    const response = await fetch(current, {
-      redirect: 'manual',
-      signal: AbortSignal.timeout(8500),
-      headers: {
-        'user-agent': 'Mozilla/5.0 (compatible; WardrobeProductPreview/1.0)',
-        accept: 'text/html,application/xhtml+xml',
-        'accept-language': 'en-IN,en;q=0.9'
-      }
-    });
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get('location');
-      if (!location) throw Error('Redirect without destination');
-      current = new URL(location, current);
-      if (current.protocol !== 'https:' || !allowedHost(current.hostname.toLowerCase()) ||
-        current.username || current.password) throw Error('Unsafe redirect');
-      continue;
-    }
-    if (!response.ok) throw Error('Store returned HTTP ' + response.status);
-    if (!/text\/html|application\/xhtml\+xml/i.test(response.headers.get('content-type') || '')) {
-      throw Error('Store did not return HTML');
-    }
-    const reader = response.body?.getReader();
-    if (!reader) throw Error('Empty response');
-    const chunks = [];
-    let size = 0;
-    while (size < 1_000_000) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      chunks.push(Buffer.from(value)); size += value.byteLength;
-    }
-    await reader.cancel().catch(() => {});
-    return { html: Buffer.concat(chunks).toString('utf8'), page: current };
-  }
-  throw Error('Too many redirects');
-}
-
-exports.handler = async event => {
-  let productUrl;
-  try {
-    const raw = event.queryStringParameters?.url;
-    if (!raw || raw.length > 2500) return send(400, {error: 'Missing or invalid product URL'});
-    productUrl = new URL(raw);
-    if (productUrl.protocol !== 'https:' || productUrl.username || productUrl.password ||
-        !allowedHost(productUrl.hostname.toLowerCase())) {
-      return send(422, {error: 'Unsupported store'});
-    }
-    const { html, page } = await readPage(productUrl);
-    const meta = readMeta(html);
-    const product = productsFromJsonLd(html)[0] || {};
-    const offers = (Array.isArray(product.offers) ? product.offers[0] : product.offers) || {};
-    const pageTitle = decode(first(meta, 'og:title', 'twitter:title') ||
-      html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '');
-    if (maintenancePage(html, pageTitle)) {
-      return send(503, {
-        error: 'Store returned a maintenance or access-restricted page',
-        code: 'STORE_UNAVAILABLE',
-        fallbackTitle: fallbackTitle(productUrl)
-      });
-    }
-    const title = decode(product.name || pageTitle || fallbackTitle(productUrl)).slice(0, 120);
-    const imageSources = [
-      ...(Array.isArray(product.image) ? product.image : [product.image]),
-      ...(meta['og:image:secure_url'] || []),
-      ...(meta['og:image'] || []),
-      ...(meta['twitter:image'] || [])
-    ];
-    const images = cleanImages(imageSources, page);
-    const currency = offers.priceCurrency || first(meta, 'product:price:currency', 'og:price:currency') || 'INR';
-    const price = formatPrice(
-      offers.price ?? offers.lowPrice ?? first(meta, 'product:price:amount', 'og:price:amount'),
-      currency
-    );
-    const description = decode(product.description || first(meta, 'description', 'og:description')).slice(0, 300);
-    // Don't misrepresent a non-product page as successful product metadata.
-    if (!product.name && !images.length && !price && !first(meta, 'og:type')) {
-      return send(503, {
-        error: 'Product metadata is not available from this store',
-        code: 'METADATA_UNAVAILABLE',
-        fallbackTitle: fallbackTitle(productUrl)
-      });
-    }
-    return send(200, {
-      title, description, price, images, image: images[0] || '',
-      vendor: page.hostname.replace(/^www\./, ''),
-      previewAvailable: !!(images.length || price || product.name)
-    });
-  } catch (error) {
-    console.warn('Product preview unavailable:', error.message);
-    return send(503, {
-      error: 'Store unavailable for previews; the product URL can still be saved',
-      code: 'STORE_UNAVAILABLE',
-      fallbackTitle: productUrl ? fallbackTitle(productUrl) : 'Saved product'
-    });
-  }
-};
-
-// When a retailer's public metadata is unavailable, search independently for
-// possible photos. Uses the documented SerpApi Google Images API, not blocked
-// retailer endpoints. Keep SERPAPI_KEY in Netlify environment variables.
-const directPreview = exports.handler;
-function searchTerms(url) {
-  const p = url.pathname.split('/').filter(Boolean);
-  const raw = (url.hostname.endsWith('myntra.com') && p.length >= 3)
-    ? p[2] : (p.at(-1) === 'buy' ? p.at(-3) : p.at(-1));
-  const name = decode(decodeURIComponent(raw || ''))
-    .replace(/[-_]+/g, ' ').replace(/\b(?:buy|online|shopping)\b/gi, ' ')
-    .replace(/\s+/g, ' ').trim().slice(0, 100);
-  const id = url.hostname.endsWith('myntra.com')
-    ? (p.find(s => /^\d{5,12}$/.test(s)) || '') : '';
-  return { name, id };
-}
-const meaningful = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(s => s.length > 2 && !['unisex','women','mens','men','shoes','shirt','sneakers','casual','design'].includes(s));
-function rankImage(result, terms, originalUrl) {
-  if (result.unsafe) return -1;
-  const text = (result.title || '') + ' ' + (result.link || '');
-  const haystack = text.toLowerCase();
-  const must = meaningful(terms.name);
-  if (must.length < 2) return -1;
-  // Require the brand and model/key descriptors to appear; reject generic shoes.
-  if (!haystack.includes(must[0])) return -1;
-  let score = must.reduce((n, t) => n + (haystack.includes(t) ? 2 : 0), 0);
-  if (score < Math.min(6, must.length * 2)) return -1;
-  if (terms.id && haystack.includes(terms.id)) score += 12;
-  if ((result.link || '').includes(originalUrl.hostname)) score += 8;
-  if (/newbalance\.(com|in)|adidas\.(com|co\.in)|nike\.com/i.test(result.link || '')) score += 3;
-  return score;
-}
-async function searchPublicImages(url) {
-  if (!process.env.SERPAPI_KEY) {
-    return {images:[], candidates:[], reason:'Image search is not configured. Add SERPAPI_KEY in Netlify environment variables.'};
-  }
-  const terms = searchTerms(url);
-  if (!terms.name) return {images:[],candidates:[],reason:'No product name found in the URL.'};
-  const params = new URLSearchParams({
-    engine:'google_images', q:terms.name + (terms.id ? ' ' + terms.id : ''),
-    gl:'in', hl:'en', safe:'active', api_key:process.env.SERPAPI_KEY
-  });
-  const response = await fetch('https://serpapi.com/search.json?' + params, {
-    signal:AbortSignal.timeout(8500)
-  });
-  if (!response.ok) throw Error('Image search HTTP ' + response.status);
-  const body = await response.json();
-  if (body.error) throw Error(body.error);
-  const sorted = (body.images_results || [])
-    .map(r => ({r, score:rankImage(r,terms,url)}))
-    .filter(x => x.score >= 0)
-    .sort((a,b) => b.score-a.score).slice(0,8);
-  const candidates = sorted.map(({r,score}) => ({
-    image:safeImage(r.original || r.thumbnail),
-    thumbnail:safeImage(r.thumbnail || r.original),
-    source:safeImage(r.link), title:decode(r.title || '').slice(0,120), score
-  })).filter(x => x.image || x.thumbnail);
-  // Only autofill an image if its result explicitly refers to the retailer's
-  // product ID; otherwise return a selectable gallery to avoid wrong colours.
-  const exact = candidates.filter(x => terms.id && (x.title + ' ' + x.source).includes(terms.id));
-  return {
-    images:(exact.length ? exact : candidates.slice(0,1)).slice(0,5).map(x=>x.thumbnail || x.image), candidates,
-    reason:candidates.length ? 'Image search found possible matches; please verify the colour and model.' : 'No sufficiently matching photographs found.'
-  };
-}
-exports.handler = async event => {
-  const normal = await directPreview(event);
-  let prior = {};
-  try {prior=JSON.parse(normal.body || '{}');} catch {}
-  if (normal.statusCode === 400 || normal.statusCode === 422) return normal;
-  if (normal.statusCode === 200 && prior.images?.length) return normal;
-  const raw = event.queryStringParameters?.url;
-  let url;
-  try {url=new URL(raw); if(url.protocol !== 'https:' || !allowedHost(url.hostname.toLowerCase()))return normal;} catch{return normal;}
-  try {
-    const results=await searchPublicImages(url);
-    const title=normal.statusCode === 200 ? prior.title : prior.fallbackTitle || fallbackTitle(url);
-    return send(200, {
-      title, vendor:url.hostname.replace(/^www\./,''),
-      price:prior.price || '', description:prior.description || '',
-      images:results.images, image:results.images[0] || '',
-      candidates:results.candidates, imageSource:results.images.length ? (results.candidates.some(c => /\b\d{8}\b/.test(c.title)) ? 'image-search-exact-id' : 'image-search-suggestion') : '',
-      searchStatus:results.reason,
-      previewAvailable:!!(results.images.length || results.candidates.length)
-    });
-  } catch(e) {
-    console.warn('Image search unavailable:',e.message);
-    return send(200, {
-      title:prior.fallbackTitle || fallbackTitle(url),vendor:url.hostname.replace(/^www\./,''),
-      price:'', description:'', images:[], candidates:[],
-      searchStatus:'Image search unavailable: ' + String(e.message).slice(0,120),
-      previewAvailable:false
-    });
-  }
-};
-  'cache-control': 'public, max-age=600'
+  "content-type": "application/json; charset=utf-8",
+  "cache-control": "public, max-age=600"
 };
 
 const send = (statusCode, data) => ({
@@ -305,98 +49,107 @@ const send = (statusCode, data) => ({
   body: JSON.stringify(data)
 });
 
-// Decode HTML entities and remove HTML tags.
 function decode(value) {
-  return String(value ?? '')
-    .replace(/&#(x[\da-f]+|\d+);/gi, (m, n) => {
-      const v = n[0].toLowerCase() === 'x'
-        ? parseInt(n.slice(1), 16)
-        : parseInt(n, 10);
+  return String(value ?? "")
+    .replace(/&#(x[\da-f]+|\d+);/gi, (match, value) => {
+      const number =
+        value[0].toLowerCase() === "x"
+          ? parseInt(value.slice(1), 16)
+          : parseInt(value, 10);
 
-      return Number.isFinite(v) && v > 0 && v <= 0x10ffff
-        ? String.fromCodePoint(v)
-        : m;
+      return number > 0 && number <= 0x10ffff
+        ? String.fromCodePoint(number)
+        : match;
     })
-    .replace(/&(?:amp|quot|apos|lt|gt|nbsp);/gi, m => ({
-      '&amp;': '&',
-      '&quot;': '"',
-      '&apos;': "'",
-      '&lt;': '<',
-      '&gt;': '>',
-      '&nbsp;': ' '
-    })[m.toLowerCase()] || m)
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/&(?:amp|quot|apos|lt|gt|nbsp);/gi, match => {
+      const entities = {
+        "&amp;": "&",
+        "&quot;": '"',
+        "&apos;": "'",
+        "&lt;": "<",
+        "&gt;": ">",
+        "&nbsp;": " "
+      };
+
+      return entities[match.toLowerCase()] || match;
+    })
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
-// Read attributes from an HTML tag.
+// Extract HTML tag attributes.
 function attrs(tag) {
-  const out = {};
+  const result = {};
 
-  for (const m of tag.matchAll(
-    /([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g
-  )) {
-    out[m[1].toLowerCase()] = decode(
-      m[2] ?? m[3] ?? m[4]
+  const pattern =
+    /([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g;
+
+  for (const match of tag.matchAll(pattern)) {
+    result[match[1].toLowerCase()] = decode(
+      match[2] ?? match[3] ?? match[4]
     );
   }
 
-  return out;
+  return result;
 }
 
 // Extract Open Graph and other metadata.
 function readMeta(html) {
-  const out = {};
+  const result = {};
 
   for (const tag of html.match(/<meta\b[^>]*>/gi) || []) {
-    const a = attrs(tag);
-    const key = (a.property || a.name || '').toLowerCase();
+    const attributes = attrs(tag);
 
-    if (!key || !a.content) continue;
+    const key = (
+      attributes.property ||
+      attributes.name ||
+      ""
+    ).toLowerCase();
 
-    if (!out[key]) out[key] = [];
+    if (!key || !attributes.content) continue;
 
-    out[key].push(a.content);
+    if (!result[key]) result[key] = [];
+
+    result[key].push(attributes.content);
   }
 
-  return out;
+  return result;
 }
 
 const first = (meta, ...keys) =>
-  keys.flatMap(key => meta[key] || [])[0] || '';
+  keys.flatMap(key => meta[key] || [])[0] || "";
 
-// Extract structured product information.
+// Extract JSON-LD Product objects.
 function productsFromJsonLd(html) {
   const products = [];
-  const seen = new Set();
 
-  function walk(x) {
-    if (!x || typeof x !== 'object' || seen.has(x)) {
+  function walk(node) {
+    if (!node || typeof node !== "object") return;
+
+    if (Array.isArray(node)) {
+      node.forEach(walk);
       return;
     }
 
-    seen.add(x);
-
-    if (Array.isArray(x)) {
-      x.forEach(walk);
-      return;
-    }
-
-    const types = [x['@type']]
+    const types = [node["@type"]]
       .flat()
-      .map(t => String(t).toLowerCase());
+      .map(value => String(value).toLowerCase());
 
-    if (types.some(t => /(?:^|\/)product$/.test(t))) {
-      products.push(x);
+    if (
+      types.some(type =>
+        /(?:^|\/)product$/.test(type)
+      )
+    ) {
+      products.push(node);
     }
 
     for (const key of [
-      '@graph',
-      'mainEntity',
-      'itemListElement'
+      "@graph",
+      "mainEntity",
+      "itemListElement"
     ]) {
-      walk(x[key]);
+      walk(node[key]);
     }
   }
 
@@ -407,408 +160,641 @@ function productsFromJsonLd(html) {
     try {
       walk(JSON.parse(script[1].trim()));
     } catch {
-      // Ignore malformed structured data.
+      // Ignore malformed JSON-LD.
     }
   }
 
   return products;
 }
 
-// Validate product photo URLs.
+// Validate publicly accessible HTTPS image URLs.
 function safeImage(raw, base) {
   try {
-    if (raw && typeof raw === 'object') {
+    if (raw && typeof raw === "object") {
       raw = raw.url || raw.contentUrl || raw.src;
     }
 
-    if (!raw || typeof raw !== 'string') {
-      return '';
-    }
+    if (!raw || typeof raw !== "string") return "";
 
     const url = new URL(decode(raw), base);
 
     return (
-      url.protocol === 'https:' &&
+      url.protocol === "https:" &&
       !url.username &&
       !url.password
     )
       ? url.toString()
-      : '';
-
+      : "";
   } catch {
-    return '';
+    return "";
   }
 }
 
-// Extract up to five unique images.
 function cleanImages(raw, base) {
   const list = raw
     .flat(Infinity)
-    .flatMap(v =>
-      typeof v === 'string' && v.includes('\n')
-        ? v.split('\n')
-        : [v]
+    .flatMap(value =>
+      typeof value === "string" && value.includes("\n")
+        ? value.split("\n")
+        : [value]
     );
 
   return [
     ...new Set(
-      list
-        .map(v => safeImage(v, base))
-        .filter(Boolean)
+      list.map(value => safeImage(value, base)).filter(Boolean)
     )
   ].slice(0, 5);
 }
 
-// Generate a readable name from the product URL.
+// Recover a readable name from the original URL.
 function fallbackTitle(url) {
-  const parts = url.pathname
-    .split('/')
-    .filter(Boolean);
+  const parts = url.pathname.split("/").filter(Boolean);
 
-  let slug = parts.at(-1) === 'buy'
-    ? parts.at(-3)
-    : parts.at(-1);
+  let slug =
+    parts.at(-1) === "buy"
+      ? parts.at(-3)
+      : parts.at(-1);
 
   if (
-    url.hostname.endsWith('myntra.com') &&
+    url.hostname.endsWith("myntra.com") &&
     parts.length >= 3
   ) {
     slug = parts[2];
   }
 
   try {
-    slug = decodeURIComponent(
-      slug || 'Saved product'
-    );
+    slug = decodeURIComponent(slug || "Saved product");
   } catch {
-    // Keep original slug.
+    slug = slug || "Saved product";
   }
 
   return decode(
     slug
-      .replace(/[-_]+/g, ' ')
-      .replace(/\b\w/g, c => c.toUpperCase())
+      .replace(/[-_]+/g, " ")
+      .replace(/\b\w/g, char => char.toUpperCase())
   ).slice(0, 120);
 }
 
-// Detect maintenance pages and access restrictions.
+// Detect common retailer error pages.
 function maintenancePage(html, title) {
-  const symptom =
+  const pattern =
     /^(?:site maintenance|access denied|temporarily unavailable|just a moment|service unavailable|oops!?|are you a robot|request blocked|attention required)/i;
 
   return (
-    symptom.test(title.trim()) ||
-    /(?:our site is currently under maintenance|enable javascript and cookies to continue|access to this page has been denied)/i
-      .test(html.slice(0, 35000))
+    pattern.test(title.trim()) ||
+    /(?:our site is currently under maintenance|enable javascript and cookies to continue|access to this page has been denied)/i.test(
+      html.slice(0, 35000)
+    )
   );
 }
 
-// Format prices without inventing missing values.
-function formatPrice(raw, currency) {
-  if (
-    raw === null ||
-    raw === undefined ||
-    raw === ''
-  ) {
-    return '';
+function formatPrice(raw, currency = "INR") {
+  if (raw === null || raw === undefined || raw === "") {
+    return "";
   }
 
   const amount = String(raw)
     .trim()
-    .replace(/^[₹\s]+/, '');
+    .replace(/^[₹\s]+/, "");
 
   if (!/^\d[\d,.]*(?:\.\d+)?$/.test(amount)) {
-    return '';
+    return "";
   }
 
   const symbol =
-    String(currency || 'INR').toUpperCase() === 'INR'
-      ? '₹'
-      : String(currency).toUpperCase() + ' ';
+    String(currency).toUpperCase() === "INR"
+      ? "₹"
+      : String(currency).toUpperCase() + " ";
 
   return (symbol + amount).slice(0, 45);
 }
 
-// Retrieve a product page safely.
-async function readPage(url) {
-  let current = url;
+// Retrieve a retailer's public HTML.
+async function readPage(originalUrl) {
+  let current = originalUrl;
 
   for (let hop = 0; hop < 4; hop++) {
     const response = await fetch(current, {
-      redirect: 'manual',
-
+      redirect: "manual",
       signal: AbortSignal.timeout(8500),
 
       headers: {
-        'user-agent':
-          'Mozilla/5.0 (compatible; WardrobeProductPreview/1.0)',
-
-        accept:
-          'text/html,application/xhtml+xml',
-
-        'accept-language':
-          'en-IN,en;q=0.9'
+        "user-agent":
+          "Mozilla/5.0 (compatible; WardrobeProductPreview/1.0)",
+        accept: "text/html,application/xhtml+xml",
+        "accept-language": "en-IN,en;q=0.9"
       }
     });
 
-    // Follow redirects only to supported stores.
     if (
       response.status >= 300 &&
       response.status < 400
     ) {
-      const location =
-        response.headers.get('location');
+      const location = response.headers.get("location");
 
       if (!location) {
-        throw Error(
-          'Redirect without destination'
-        );
+        throw new Error("Redirect without destination");
       }
 
       current = new URL(location, current);
 
       if (
-        current.protocol !== 'https:' ||
-        !allowedHost(
-          current.hostname.toLowerCase()
-        ) ||
+        current.protocol !== "https:" ||
+        !allowedHost(current.hostname.toLowerCase()) ||
         current.username ||
         current.password
       ) {
-        throw Error('Unsafe redirect');
+        throw new Error("Unsafe redirect");
       }
 
       continue;
     }
 
     if (!response.ok) {
-      throw Error(
-        'Store returned HTTP ' + response.status
+      throw new Error(
+        "Store returned HTTP " + response.status
       );
     }
 
     const contentType =
-      response.headers.get('content-type') || '';
+      response.headers.get("content-type") || "";
 
     if (
-      !/text\/html|application\/xhtml\+xml/i
-        .test(contentType)
+      !/text\/html|application\/xhtml\+xml/i.test(
+        contentType
+      )
     ) {
-      throw Error(
-        'Store did not return HTML'
-      );
+      throw new Error("Store did not return HTML");
     }
 
-    const reader =
-      response.body?.getReader();
+    const reader = response.body?.getReader();
 
     if (!reader) {
-      throw Error('Empty response');
+      throw new Error("Empty response");
     }
 
     const chunks = [];
     let size = 0;
 
     while (size < 1_000_000) {
-      const { value, done } =
-        await reader.read();
+      const { value, done } = await reader.read();
 
       if (done) break;
 
       chunks.push(Buffer.from(value));
-
       size += value.byteLength;
     }
 
     await reader.cancel().catch(() => {});
 
     return {
-      html: Buffer.concat(chunks).toString('utf8'),
+      html: Buffer.concat(chunks).toString("utf8"),
       page: current
     };
   }
 
-  throw Error('Too many redirects');
+  throw new Error("Too many redirects");
 }
 
-// Main Netlify serverless function.
+// Try fetching product details directly.
+async function directPreview(productUrl) {
+  const { html, page } = await readPage(productUrl);
+
+  const meta = readMeta(html);
+  const product = productsFromJsonLd(html)[0] || {};
+
+  const offers = (
+    Array.isArray(product.offers)
+      ? product.offers[0]
+      : product.offers
+  ) || {};
+
+  const pageTitle = decode(
+    first(meta, "og:title", "twitter:title") ||
+    html.match(
+      /<title[^>]*>([\s\S]*?)<\/title>/i
+    )?.[1] ||
+    ""
+  );
+
+  if (maintenancePage(html, pageTitle)) {
+    throw new Error(
+      "Store returned a maintenance or access-restricted page"
+    );
+  }
+
+  const title = decode(
+    product.name ||
+    pageTitle ||
+    fallbackTitle(productUrl)
+  ).slice(0, 120);
+
+  const imageSources = [
+    ...(Array.isArray(product.image)
+      ? product.image
+      : [product.image]),
+
+    ...(meta["og:image:secure_url"] || []),
+    ...(meta["og:image"] || []),
+    ...(meta["twitter:image"] || [])
+  ];
+
+  const images = cleanImages(imageSources, page);
+
+  const currency =
+    offers.priceCurrency ||
+    first(
+      meta,
+      "product:price:currency",
+      "og:price:currency"
+    ) ||
+    "INR";
+
+  const price = formatPrice(
+    offers.price ??
+    offers.lowPrice ??
+    first(
+      meta,
+      "product:price:amount",
+      "og:price:amount"
+    ),
+    currency
+  );
+
+  const description = decode(
+    product.description ||
+    first(meta, "description", "og:description")
+  ).slice(0, 300);
+
+  if (
+    !product.name &&
+    !images.length &&
+    !price
+  ) {
+    throw new Error(
+      "Product metadata unavailable"
+    );
+  }
+
+  return {
+    title,
+    description,
+    price,
+    images,
+    image: images[0] || "",
+    vendor: page.hostname.replace(/^www\./, ""),
+    previewAvailable: true,
+    imageSource: images.length ? "retailer" : ""
+  };
+}
+
+// Extract searchable product information.
+function searchTerms(url) {
+  const parts = url.pathname.split("/").filter(Boolean);
+
+  const raw =
+    url.hostname.endsWith("myntra.com") &&
+    parts.length >= 3
+      ? parts[2]
+      : parts.at(-1) === "buy"
+        ? parts.at(-3)
+        : parts.at(-1);
+
+  let decoded = raw || "";
+
+  try {
+    decoded = decodeURIComponent(decoded);
+  } catch {
+    // Keep original text.
+  }
+
+  const name = decode(decoded)
+    .replace(/[-_]+/g, " ")
+    .replace(/\b(?:buy|online|shopping)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
+
+  const id = url.hostname.endsWith("myntra.com")
+    ? parts.find(part => /^\d{5,12}$/.test(part)) || ""
+    : "";
+
+  return { name, id };
+}
+
+function meaningful(value) {
+  const ignored = new Set([
+    "unisex",
+    "women",
+    "mens",
+    "men",
+    "shoes",
+    "shirt",
+    "sneakers",
+    "casual",
+    "design"
+  ]);
+
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(word =>
+      word.length > 2 && !ignored.has(word)
+    );
+}
+
+// Rank candidate image-search results.
+function rankImage(result, terms, originalUrl) {
+  if (result.unsafe) return -1;
+
+  const text = (
+    (result.title || "") +
+    " " +
+    (result.link || "")
+  ).toLowerCase();
+
+  const keywords = meaningful(terms.name);
+
+  if (keywords.length < 2) return -1;
+
+  if (!text.includes(keywords[0])) return -1;
+
+  let score = keywords.reduce(
+    (total, word) =>
+      total + (text.includes(word) ? 2 : 0),
+    0
+  );
+
+  if (
+    score <
+    Math.min(6, keywords.length * 2)
+  ) {
+    return -1;
+  }
+
+  if (
+    terms.id &&
+    text.includes(terms.id)
+  ) {
+    score += 12;
+  }
+
+  if (
+    (result.link || "").includes(
+      originalUrl.hostname
+    )
+  ) {
+    score += 8;
+  }
+
+  if (
+    /newbalance\.(com|in)|adidas\.(com|co\.in)|nike\.com/i
+      .test(result.link || "")
+  ) {
+    score += 3;
+  }
+
+  return score;
+}
+
+// Search Google Images through SerpApi.
+async function searchPublicImages(url) {
+  const apiKey = process.env.SERPAPI_KEY;
+
+  if (!apiKey) {
+    return {
+      images: [],
+      candidates: [],
+      reason:
+        "Image search is not configured. Add SERPAPI_KEY in Netlify environment variables."
+    };
+  }
+
+  const terms = searchTerms(url);
+
+  if (!terms.name) {
+    return {
+      images: [],
+      candidates: [],
+      reason: "Product name unavailable."
+    };
+  }
+
+  const query =
+    terms.name +
+    (terms.id ? " " + terms.id : "");
+
+  const params = new URLSearchParams({
+    engine: "google_images",
+    q: query,
+    gl: "in",
+    hl: "en",
+    safe: "active",
+    api_key: apiKey
+  });
+
+  const response = await fetch(
+    "https://serpapi.com/search.json?" +
+    params.toString(),
+    {
+      signal: AbortSignal.timeout(8500)
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      "Image search HTTP " + response.status
+    );
+  }
+
+  const body = await response.json();
+
+  if (body.error) {
+    throw new Error(body.error);
+  }
+
+  const sorted = (body.images_results || [])
+    .map(result => ({
+      result,
+      score: rankImage(
+        result,
+        terms,
+        url
+      )
+    }))
+    .filter(entry => entry.score >= 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);
+
+  const candidates = sorted
+    .map(({ result, score }) => ({
+      image: safeImage(
+        result.original || result.thumbnail
+      ),
+
+      thumbnail: safeImage(
+        result.thumbnail || result.original
+      ),
+
+      source: safeImage(result.link),
+
+      title: decode(
+        result.title || ""
+      ).slice(0, 120),
+
+      score
+    }))
+    .filter(
+      candidate =>
+        candidate.image || candidate.thumbnail
+    );
+
+  // Prefer candidates containing the exact product ID.
+  const exact = candidates.filter(
+    candidate =>
+      terms.id &&
+      (
+        candidate.title +
+        " " +
+        candidate.source
+      ).includes(terms.id)
+  );
+
+  // Other matches remain suggestions and should be verified.
+  const suggested = exact.length
+    ? exact
+    : candidates.slice(0, 1);
+
+  return {
+    images: suggested
+      .slice(0, 5)
+      .map(candidate =>
+        candidate.thumbnail || candidate.image
+      ),
+
+    candidates,
+
+    reason: candidates.length
+      ? "Possible product photographs found. Verify the model and colour."
+      : "No sufficiently matching photographs found.",
+
+    exactMatch: exact.length > 0
+  };
+}
+
+// Main Netlify function.
 exports.handler = async event => {
+  const raw = event.queryStringParameters?.url;
+
+  if (!raw || raw.length > 2500) {
+    return send(400, {
+      error: "Missing or invalid product URL"
+    });
+  }
+
   let productUrl;
 
   try {
-    const raw =
-      event.queryStringParameters?.url;
-
-    if (!raw || raw.length > 2500) {
-      return send(400, {
-        error: 'Missing or invalid product URL'
-      });
-    }
-
     productUrl = new URL(raw);
+  } catch {
+    return send(400, {
+      error: "Invalid product URL"
+    });
+  }
 
-    if (
-      productUrl.protocol !== 'https:' ||
-      productUrl.username ||
-      productUrl.password ||
-      !allowedHost(
-        productUrl.hostname.toLowerCase()
-      )
-    ) {
-      return send(422, {
-        error: 'Unsupported store'
-      });
-    }
+  if (
+    productUrl.protocol !== "https:" ||
+    productUrl.username ||
+    productUrl.password ||
+    !allowedHost(
+      productUrl.hostname.toLowerCase()
+    )
+  ) {
+    return send(422, {
+      error: "Unsupported store"
+    });
+  }
 
-    const { html, page } =
-      await readPage(productUrl);
+  let product = {
+    title: fallbackTitle(productUrl),
+    description: "",
+    price: "",
+    images: [],
+    image: "",
+    vendor: productUrl.hostname.replace(/^www\./, ""),
+    previewAvailable: false
+  };
 
-    const meta = readMeta(html);
+  let retailerError = "";
 
-    const product =
-      productsFromJsonLd(html)[0] || {};
+  // First attempt: retrieve the original product page.
+  try {
+    product = await directPreview(productUrl);
+  } catch (error) {
+    retailerError = error.message;
 
-    const offers = (
-      Array.isArray(product.offers)
-        ? product.offers[0]
-        : product.offers
-    ) || {};
-
-    const pageTitle = decode(
-      first(
-        meta,
-        'og:title',
-        'twitter:title'
-      ) ||
-      html.match(
-        /<title[^>]*>([\s\S]*?)<\/title>/i
-      )?.[1] ||
-      ''
+    console.warn(
+      "Retailer preview unavailable:",
+      retailerError
     );
+  }
 
-    // Reject store error pages.
-    if (maintenancePage(html, pageTitle)) {
-      return send(503, {
-        error:
-          'Store returned a maintenance or access-restricted page',
-
-        code: 'STORE_UNAVAILABLE',
-
-        fallbackTitle:
-          fallbackTitle(productUrl)
-      });
-    }
-
-    // Product name.
-    const title = decode(
-      product.name ||
-      pageTitle ||
-      fallbackTitle(productUrl)
-    ).slice(0, 120);
-
-    // Product photographs.
-    const imageSources = [
-      ...(Array.isArray(product.image)
-        ? product.image
-        : [product.image]),
-
-      ...(meta['og:image:secure_url'] || []),
-
-      ...(meta['og:image'] || []),
-
-      ...(meta['twitter:image'] || [])
-    ];
-
-    const images =
-      cleanImages(imageSources, page);
-
-    // Product price.
-    const currency =
-      offers.priceCurrency ||
-      first(
-        meta,
-        'product:price:currency',
-        'og:price:currency'
-      ) ||
-      'INR';
-
-    const price = formatPrice(
-      offers.price ??
-      offers.lowPrice ??
-      first(
-        meta,
-        'product:price:amount',
-        'og:price:amount'
-      ),
-      currency
-    );
-
-    // Product description.
-    const description = decode(
-      product.description ||
-      first(
-        meta,
-        'description',
-        'og:description'
-      )
-    ).slice(0, 300);
-
-    // Reject pages without useful product metadata.
-    if (
-      !product.name &&
-      !images.length &&
-      !price &&
-      !first(meta, 'og:type')
-    ) {
-      return send(503, {
-        error:
-          'Product metadata is not available from this store',
-
-        code: 'METADATA_UNAVAILABLE',
-
-        fallbackTitle:
-          fallbackTitle(productUrl)
-      });
-    }
-
-    // Successful product preview.
+  // If retailer photos exist, return them directly.
+  if (product.images.length) {
     return send(200, {
-      title,
+      ...product,
+      candidates: [],
+      searchStatus: "Retailer photographs retrieved."
+    });
+  }
 
-      description,
+  // Second attempt: independent public image search.
+  try {
+    const results =
+      await searchPublicImages(productUrl);
 
-      price,
+    return send(200, {
+      ...product,
 
-      images,
+      images: results.images,
 
-      image: images[0] || '',
+      image: results.images[0] || "",
 
-      vendor:
-        page.hostname.replace(/^www\./, ''),
+      candidates: results.candidates,
 
-      previewAvailable: !!(
-        images.length ||
-        price ||
-        product.name
-      )
+      imageSource: results.images.length
+        ? results.exactMatch
+          ? "image-search-exact-id"
+          : "image-search-suggestion"
+        : "",
+
+      searchStatus: results.reason,
+
+      previewAvailable:
+        product.previewAvailable ||
+        results.images.length > 0,
+
+      retailerError
     });
 
   } catch (error) {
     console.warn(
-      'Product preview unavailable:',
+      "Image search unavailable:",
       error.message
     );
 
-    return send(503, {
-      error:
-        'Store unavailable for previews; the product URL can still be saved',
+    return send(200, {
+      ...product,
 
-      code: 'STORE_UNAVAILABLE',
+      candidates: [],
 
-      fallbackTitle:
-        productUrl
-          ? fallbackTitle(productUrl)
-          : 'Saved product'
+      searchStatus:
+        "Image search unavailable: " +
+        String(error.message).slice(0, 120),
+
+      retailerError
     });
   }
 };
